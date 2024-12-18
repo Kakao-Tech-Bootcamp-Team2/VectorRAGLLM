@@ -12,3 +12,5 @@ transformers
 langchain-huggingface
 aiohttp~=3.10.10
 langchain-openai
+pika
+aio-pika
