@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from app.route.route import router
 from app.service.listen.listen import listener
+from app.service.publish.publish import publisher
 import asyncio
 import os
 
@@ -14,8 +15,9 @@ async def lifespan(app: FastAPI):
     global _listener_task
     
     try:
-        # 리스너 설정
+        # 리스너와 발행자 설정
         await listener.setup()
+        await publisher.setup()
         
         # 백그라운드 태스크로 리스너 실행
         if _listener_task is None:
@@ -27,6 +29,7 @@ async def lifespan(app: FastAPI):
         # 종료 시 리소스 정리
         if _listener_task:
             await listener.cleanup()
+            await publisher.cleanup()
             _listener_task.cancel()
             try:
                 await _listener_task
