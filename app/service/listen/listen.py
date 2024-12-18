@@ -4,6 +4,7 @@ import asyncio
 from typing import List, Dict, Optional
 from app.service.search import search_recipes_by_text
 from app.service.llm import generate_response
+from app.service.publish.publish import publisher
 
 class MessageProcessor:
     @staticmethod
@@ -24,7 +25,10 @@ class MessageProcessor:
             
             llm_response = generate_response(ingredients_data, search_results)
             print(f" [x] 응답 생성 완료 (검색된 레시피: {len(search_results)}개)")
-            return print(llm_response)
+            
+            # 응답 발행
+            await publisher.publish_message(llm_response)
+            return llm_response
             
         except Exception as e:
             print(f" [x] 처리 중 오류 발생: {e}")
