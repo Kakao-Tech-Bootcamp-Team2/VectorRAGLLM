@@ -12,8 +12,6 @@ class MessageProcessor:
         try:
             # 입력 데이터 처리
             ingredients_data = json.loads(body.decode())
-            #ingredients_str = ", ".join(f'{item["ingredients"]}({item["quantities"]})' for item in ingredients_data)
-            #print(ingredients_str)
             query = ",".join(item["ingredients"] for item in ingredients_data)
             print(f" [x] 검색할 재료: {query}")
     
@@ -23,6 +21,7 @@ class MessageProcessor:
                 print(" [x] 검색 결과가 없습니다.")
                 return None
             
+            print(ingredients_data)
             llm_response = generate_response(ingredients_data, search_results)
             print(f" [x] 응답 생성 완료 (검색된 레시피: {len(search_results)}개)")
             
