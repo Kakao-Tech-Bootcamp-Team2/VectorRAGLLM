@@ -1,44 +1,50 @@
 from pinecone import Pinecone, ServerlessSpec
 from app.core import setting
 import gc
-from typing import List, Dict
+from typing import List, Dict, Final
 import re
+from threading import Lock
 
 class DatabaseConnection:
     _instance = None
-    _index = None
-    _pc = None
-
+    _lock = Lock()
+    
     def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-        return cls._instance
+        with cls._lock:
+            if cls._instance is None:
+                cls._instance = super().__new__(cls)
+                cls._instance.index_name = "recipes"
+                cls._instance.dimension = 1024
+                cls._instance._connection_lock = Lock()
+                cls._instance._index = None
+                cls._instance._pc = None
+            return cls._instance
 
     def __init__(self):
-        self.index_name = "recipes"
-        self.dimension = 1024
+        pass
 
     def _load_connection(self):
-        if self._pc is None:
-            self._pc = Pinecone(api_key=setting.PINECONE_API_KEY)
-            
-            # 인덱스 존재 여부 확인
-            if self.index_name not in self._pc.list_indexes().names():
-                self._pc.create_index(
-                    name=self.index_name,
-                    dimension=self.dimension,
-                    metric='cosine',
-                    spec=ServerlessSpec(
-                        cloud='aws',
-                        region='us-east-1'
+        with self._connection_lock:
+            if self._pc is None:
+                self._pc = Pinecone(api_key=setting.PINECONE_API_KEY)
+                
+                # 인덱스 존재 여부 확인
+                if self.index_name not in self._pc.list_indexes().names():
+                    self._pc.create_index(
+                        name=self.index_name,
+                        dimension=self.dimension,
+                        metric='cosine',
+                        spec=ServerlessSpec(
+                            cloud='aws',
+                            region='us-east-1'
+                        )
                     )
-                )
-                print(f"인덱스 '{self.index_name}'가 생성되었습니다.")
-            else:
-                print(f"인덱스 '{self.index_name}'는 이미 존재합니다. 기존 인덱스를 사용합니다.")
+                    print(f"인덱스 '{self.index_name}'가 생성되었습니다.")
+                else:
+                    print(f"인덱스 '{self.index_name}'는 이미 존재합니다. 기존 인덱스를 사용합니다.")
 
-            # 인덱스 불러오기
-            self._index = self._pc.Index(self.index_name)
+                # 인덱스 불러오기
+                self._index = self._pc.Index(self.index_name)
 
     def _unload_connection(self):
         try:
@@ -105,7 +111,7 @@ class DatabaseConnection:
             # 분수 형태 제거
             ingredient = re.sub(r'\d+\/\d+', '', ingredient)
             # 측정 단위 제거
-            ingredient = re.sub(r'(약간|T|t|컵|큰술|작은술|숟가락|스푼|g|kg|ml|L)', '', ingredient)
+            ingredient = re.sub(r'(약간|T|t|컵|큰술|은술|숟가락|스푼|g|kg|ml|L)', '', ingredient)
             # 남은 숫자들 제거
             ingredient = re.sub(r'\d+', '', ingredient)
             # 특수문자 제거 (슬래시, 물결표 등)
