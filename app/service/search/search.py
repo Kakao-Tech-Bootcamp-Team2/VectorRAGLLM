@@ -3,7 +3,7 @@ from app.repositorie.db_connection import DatabaseConnection
 from app.service.preprocess.data_embedding import EmbeddingService
 import gc
 
-def search_recipes_by_text(query: str, embedding_service=None, top_k: int = 50) -> List[Dict]:
+def search_recipes_by_text(query: str, embedding_service=None, top_k: int = 500) -> List[Dict]:
     if embedding_service is None:
         embedding_service = EmbeddingService()
     
@@ -27,7 +27,7 @@ def search_recipes_by_text(query: str, embedding_service=None, top_k: int = 50) 
         print(f"임베딩 처리 중 오류 발생: {e}")
         return []
 
-def search_recipes(query_embedding: List[float], query_ingredients: List[str], top_k: int = 50) -> List[Dict]:
+def search_recipes(query_embedding: List[float], query_ingredients: List[str], top_k: int = 500) -> List[Dict]:
     db = DatabaseConnection()
     
     # 디버깅 로그
