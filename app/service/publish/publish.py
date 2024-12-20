@@ -1,9 +1,19 @@
+from typing import Any
+from app.core import setting
+from app.core.logger import setup_logger
+from app.core.exception import AppException
+
 import aio_pika
 import json
-from typing import Any
+
+logger = setup_logger(__name__)
+
 
 class RabbitMQPublisher:
-    def __init__(self, host: str = 'localhost', exchange: str = '', routing_key: str = 'response.queue'):
+    def __init__(
+            self, host: str = setting.RABBITMQ_HOST, exchange: str = '', 
+            routing_key: str = setting.RABBITMQ_RESPONSE_QUEUE
+            ):
         self.host = host
         self.exchange = exchange
         self.routing_key = routing_key
@@ -12,10 +22,16 @@ class RabbitMQPublisher:
 
     async def setup(self):
         """RabbitMQ 연결 설정"""
-        if not self.connection:
-            self.connection = await aio_pika.connect_robust(f"amqp://{self.host}/")
-            self.channel = await self.connection.channel()
-            await self.channel.declare_queue(self.routing_key, durable=True)
+        try :
+            if not self.connection:
+                logger.info("RabbitMQ connection setting...")
+                self.connection = await aio_pika.connect_robust(f"amqp://{self.host}/")
+                self.channel = await self.connection.channel()
+                await self.channel.declare_queue(self.routing_key, durable=True)
+                logger.info("RabbitMQ connection setting complete.")
+        except Exception as e:
+            logger.error(f"RabbitMQ connection setting error: {e}")
+            raise AppException("RabbitMQ connection setting error")
 
     async def publish_message(self, message: Any):
         """메시지 발행"""
@@ -38,10 +54,10 @@ class RabbitMQPublisher:
                 ),
                 routing_key=self.routing_key
             )
-            print(f" [x] 응답 발행 완료: {self.routing_key}")
-
+            logger.info(f"RabbitMQ published successfully")
         except Exception as e:
-            print(f" [x] 메시지 발행 중 오류 발생: {e}")
+            logger.error(f"RabbitMQ message publish error: {e}")
+            raise AppException("RabbitMQ message publish error")
 
     async def cleanup(self):
         """리소스 정리"""
@@ -49,6 +65,7 @@ class RabbitMQPublisher:
             await self.connection.close()
             self.connection = None
             self.channel = None
+            logger.info("RabbitMQ connection closed.")
 
 # 전역 발행자 인스턴스
 publisher = RabbitMQPublisher()
