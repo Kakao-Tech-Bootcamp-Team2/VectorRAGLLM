@@ -1,40 +1,46 @@
-import aio_pika
-import json
-import asyncio
-from typing import List, Dict, Optional
-from app.service.search import search_recipes_by_text
+from typing import Dict, Optional
+from app.core import setting
+from app.core.logger import setup_logger
+from app.core.exception import AppException
+from app.service.search.search import search_service 
 from app.service.llm import generate_response
 from app.service.publish.publish import publisher
+
+import aio_pika
+import json
+
+logger = setup_logger(__name__)
 
 class MessageProcessor:
     @staticmethod
     async def process_message(body: bytes) -> Optional[Dict]:
         try:
-            # 입력 데이터 처리
             ingredients_data = json.loads(body.decode())
             query = ",".join(item["ingredients"] for item in ingredients_data)
-            print(f" [x] 검색할 재료: {query}")
+            logger.info(f"검색할 재료: {query}")
     
-            # 레시피 검색 및 LLM 처리
-            search_results = search_recipes_by_text(query)
+            search_results = await search_service.search_recipes_by_text(query)
             if not search_results:
-                print(" [x] 검색 결과가 없습니다.")
+                logger.warning("검색 결과가 없습니다.")
                 return None
             
-            print(ingredients_data)
+            logger.debug(f"ingredients_data: {ingredients_data}")
             llm_response = generate_response(ingredients_data, search_results)
-            print(f" [x] 응답 생성 완료 (검색된 레시피: {len(search_results)}개)")
+            logger.info(f"응답 생성 완료 (검색된 레시피: {len(search_results)}개)")
             
-            # 응답 발행
             await publisher.publish_message(llm_response)
             return llm_response
             
         except Exception as e:
-            print(f" [x] 처리 중 오류 발생: {e}")
-            return None
+            logger.error(f"메시지 처리 중 오류 발생: {e}")
+            raise AppException("Message processing error", status_code=500)
 
 class RabbitMQListener:
-    def __init__(self, host: str = 'localhost', queue: str = 'recommendation.queue'):
+    def __init__(
+            self, 
+            host: str = setting.RABBITMQ_HOST, 
+            queue: str = setting.RABBITMQ_QUEUE
+        ):
         self.host = host
         self.queue = queue
         self.connection = None
@@ -43,34 +49,36 @@ class RabbitMQListener:
 
     async def setup(self):
         """RabbitMQ 연결 설정"""
-        if self._running:
-            return
-            
         try:
-            self.connection = await aio_pika.connect_robust(f"amqp://{self.host}/")
-            self.channel = await self.connection.channel()
-            
-            await self.channel.declare_queue(self.queue, durable=True)
-            await self.channel.set_qos(prefetch_count=1)
-            
-            self._running = True
-            print(f" [*] '{self.queue}' 큐에서 메시지 대기 중...")
+            if not self._running:
+                logger.info("RabbitMQ listener connection setting...")
+                self.connection = await aio_pika.connect_robust(f"amqp://{self.host}/")
+                self.channel = await self.connection.channel()
+                
+                await self.channel.declare_queue(self.queue, durable=True)
+                await self.channel.set_qos(prefetch_count=1)
+                
+                self._running = True
+                logger.info(f"'{self.queue}' 큐에서 메시지 대기 중...")
             
         except Exception as e:
-            print(f" [x] RabbitMQ 연결 실패: {e}")
-            raise
+            logger.error(f"RabbitMQ 연결 실패: {e}")
+            raise AppException("RabbitMQ connection error")
 
     async def consume(self):
         """메시지 소비"""
-        if not self._running:
-            return
         try:
+            if not self._running:
+                await self.setup()
+                
             queue = await self.channel.declare_queue(self.queue, durable=True)
             async for message in queue:
                 async with message.process():
                     await MessageProcessor.process_message(message.body)
+                    
         except Exception as e:
-            print(f" [x] 메시지 소비 중 오류 발생: {e}")
+            logger.error(f"메시지 소비 중 오류 발생: {e}")
+            raise AppException("Message consumption error", status_code=500)
         finally:
             self._running = False
 
@@ -79,6 +87,9 @@ class RabbitMQListener:
         if self.connection:
             await self.connection.close()
             self._running = False
+            self.connection = None
+            self.channel = None
+            logger.info("RabbitMQ connection closed.")
 
 # 전역 리스너 인스턴스
 listener = RabbitMQListener()
