@@ -1,1 +1,1 @@
-from .search import search_recipes,search_recipes_by_text
+from .search import search_service
