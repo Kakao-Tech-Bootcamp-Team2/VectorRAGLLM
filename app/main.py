@@ -1,6 +1,5 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
-from app.route.route import router
 from app.service.listen.listen import listener
 from app.service.publish.publish import publisher
 import asyncio
@@ -37,4 +36,3 @@ async def lifespan(app: FastAPI):
                 pass
 
 app = FastAPI(lifespan=lifespan)
-app.include_router(router)
