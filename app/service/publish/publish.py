@@ -31,7 +31,7 @@ class RabbitMQPublisher:
                 logger.info("RabbitMQ connection setting complete.")
         except Exception as e:
             logger.error(f"RabbitMQ connection setting error: {e}")
-            raise AppException("RabbitMQ connection setting error")
+            raise AppException("RabbitMQ connection setting error",status_code=503)
 
     async def publish_message(self, message: Any):
         """메시지 발행"""
@@ -57,7 +57,7 @@ class RabbitMQPublisher:
             logger.info(f"RabbitMQ published successfully")
         except Exception as e:
             logger.error(f"RabbitMQ message publish error: {e}")
-            raise AppException("RabbitMQ message publish error")
+            raise AppException("RabbitMQ message publish error",status_code=500)
 
     async def cleanup(self):
         """리소스 정리"""

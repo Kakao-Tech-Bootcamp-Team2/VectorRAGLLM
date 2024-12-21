@@ -27,7 +27,7 @@ class RecipeGenerator:
             logger.info("LLM Generate Initialized.")
         except Exception as e:
             logger.error(f"LLM generate Error: {e}")
-            raise AppException("LLM Generate Error")
+            raise AppException("LLM Generate Error",status_code=503)
         
     def format_ingredients(self, ingredients: List[Dict[str, str]]) -> str:
         return "\n".join(
@@ -49,7 +49,7 @@ class RecipeGenerator:
             return self.llm.invoke(formatted_messages)
         except Exception as e:
             logger.error(f"Recipe Generation Error: {e}")
-            raise AppException("Recipe Generation Error")
+            raise AppException("Recipe Generation Error",status_code=503)
 
 # 전역 인스턴스 생성
 recipe_generator = RecipeGenerator()
@@ -61,4 +61,4 @@ def generate_response(user_ingredients: List[Dict[str, str]], search_response: s
         return response.model_dump(by_alias=True) if response else None
     except Exception as e:
         logger.error(f"Generate Response Error: {e}")
-        raise AppException("Generate Response Error")
+        raise AppException("Generate Response Error",status_code=503)

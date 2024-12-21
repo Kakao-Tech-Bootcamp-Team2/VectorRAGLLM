@@ -63,7 +63,7 @@ class RabbitMQListener:
             
         except Exception as e:
             logger.error(f"RabbitMQ 연결 실패: {e}")
-            raise AppException("RabbitMQ connection error")
+            raise AppException("RabbitMQ connection error",status_code=503)
 
     async def consume(self):
         """메시지 소비"""
