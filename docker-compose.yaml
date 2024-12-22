@@ -29,8 +29,6 @@ services:
     networks:
       - recipe_network
     restart: on-failure:3
-    environment:
-      - RABBITMQ_HOST=rabbitmq
 
 networks:
   recipe_network:
