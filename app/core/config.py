@@ -17,7 +17,10 @@ class Setting(BaseSettings):
     RABBITMQ_ROUTING_KEY: str = "recommendation.zipbob"
     RABBITMQ_DLX: str = "dlx.rc.exchange"
     RABBITMQ_QUEUE_ARGUMENTS : Dict[str,any] = {
-    'x-message-ttl': 60000  # 60초
+    'x-message-ttl': 60000,  # 60초
+    'x-dead-letter-exchange': 'dlx.rc.exchange',
+    'x-dead-letter-routing-key': 'dlq.rc.zipbob',
+    'x-queue-type': 'classic'
     }
     MODEL_NAME: str = "intfloat/multilingual-e5-large-instruct"
     VECTOR_DB_NAME : str = "recipes"

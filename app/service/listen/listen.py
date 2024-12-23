@@ -27,7 +27,7 @@ class MessageProcessor:
             
             logger.debug(f"ingredients_data: {ingredients_data}")
             llm_response = generate_response(ingredients_data, search_results)
-            logger.info(f"응답 생성 완료 (검색된 레시피: {len(search_results)}개)")
+            logger.info(f"응답 생성 완료 (검색된 레��피: {len(search_results)}개)")
             
             await publisher.publish_message(llm_response)
             return llm_response
@@ -62,26 +62,23 @@ class RabbitMQListener:
                 # Exchange 선언
                 exchange = await self.channel.declare_exchange(
                     self.exchange_name,
-                    type=ExchangeType.DIRECT,
+                    type=ExchangeType.TOPIC,
                     durable=True
                 )
                 
-                try:
-                    # 기존 큐 확인
-                    queue = await self.channel.declare_queue(
-                        self.queue,
-                        passive=True
-                    )
-                    logger.info(f"기존 큐 '{self.queue}' 발견")
-                    
-                except aio_pika.exceptions.ChannelClosedByBroker:
-                    # 큐가 존재하지 않는 경우 새로 생성
-                    logger.info(f"새로운 큐 '{self.queue}' 생성")
-                    queue = await self.channel.declare_queue(
-                        self.queue,
-                        durable=True,
-                        arguments=setting.RABBITMQ_QUEUE_ARGUMENTS
-                    )
+                # Dead Letter Exchange 선언
+                dlx = await self.channel.declare_exchange(
+                    'dlx.rc.exchange',
+                    type=ExchangeType.TOPIC,
+                    durable=True
+                )
+                
+                # Queue 선언
+                queue = await self.channel.declare_queue(
+                    self.queue,
+                    durable=True,
+                    arguments=setting.RABBITMQ_QUEUE_ARGUMENTS
+                )
                 
                 # Queue를 Exchange에 바인딩
                 await queue.bind(
@@ -94,9 +91,6 @@ class RabbitMQListener:
                 self._running = True
                 logger.info(f"'{self.queue}' 큐에서 메시지 대기 중...")
             
-        except aio_pika.exceptions.ChannelPreconditionFailed as e:
-            logger.error(f"큐 선언 실패 (설정 불일치): {e}")
-            raise AppException("RabbitMQ queue configuration error", status_code=503)
         except Exception as e:
             logger.error(f"RabbitMQ 연결 실패: {e}")
             raise AppException("RabbitMQ connection error", status_code=503)
@@ -106,12 +100,7 @@ class RabbitMQListener:
         try:
             if not self._running:
                 await self.setup()
-                
-            queue = await self.channel.declare_queue(
-                self.queue, 
-                durable=True,
-                arguments=setting.RABBITMQ_QUEUE_ARGUMENTS
-            )
+            queue = await self.channel.get_queue(self.queue)
             async for message in queue:
                 async with message.process():
                     await MessageProcessor.process_message(message.body)
