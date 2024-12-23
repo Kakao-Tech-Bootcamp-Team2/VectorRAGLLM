@@ -1,7 +1,7 @@
 from functools import lru_cache
 from pydantic_settings import BaseSettings
 import os
-from typing import Final
+from typing import Final,Dict
 
 class Setting(BaseSettings):
     RECIPE_DB_API_KEY: Final[str]
@@ -13,7 +13,7 @@ class Setting(BaseSettings):
     RABBITMQ_HOST : Final[str]
     RABBITMQ_QUEUE : str = "recommendation.queue"
     RABBITMQ_RESPONSE_QUEUE : str = "response.queue"
-    RABBITMQ_QUEUE_ARGUMENTS = {
+    RABBITMQ_QUEUE_ARGUMENTS : Dict[str,int] = {
     'x-message-ttl': 60000  # 60초
     }
     MODEL_NAME: str = "intfloat/multilingual-e5-large-instruct"
