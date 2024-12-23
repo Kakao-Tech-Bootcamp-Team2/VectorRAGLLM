@@ -7,6 +7,7 @@ from app.service.llm import generate_response
 from app.service.publish.publish import publisher
 
 import aio_pika
+from aio_pika import ExchangeType
 import json
 
 logger = setup_logger(__name__)
@@ -43,6 +44,8 @@ class RabbitMQListener:
         ):
         self.host = host
         self.queue = queue
+        self.exchange_name = setting.RABBITMQ_EXCHANGE
+        self.routing_key = setting.RABBITMQ_ROUTING_KEY
         self.connection = None
         self.channel = None
         self._running = False
@@ -55,19 +58,48 @@ class RabbitMQListener:
                 connection_url = f"amqp://{self.host}/"
                 self.connection = await aio_pika.connect_robust(connection_url)
                 self.channel = await self.connection.channel()
-                await self.channel.declare_queue(
-                    self.queue, 
-                    durable=True,
-                    arguments=setting.RABBITMQ_QUEUE_ARGUMENTS
+                
+                # Exchange 선언
+                exchange = await self.channel.declare_exchange(
+                    self.exchange_name,
+                    type=ExchangeType.DIRECT,
+                    durable=True
                 )
+                
+                try:
+                    # 기존 큐 확인
+                    queue = await self.channel.declare_queue(
+                        self.queue,
+                        passive=True
+                    )
+                    logger.info(f"기존 큐 '{self.queue}' 발견")
+                    
+                except aio_pika.exceptions.ChannelClosedByBroker:
+                    # 큐가 존재하지 않는 경우 새로 생성
+                    logger.info(f"새로운 큐 '{self.queue}' 생성")
+                    queue = await self.channel.declare_queue(
+                        self.queue,
+                        durable=True,
+                        arguments=setting.RABBITMQ_QUEUE_ARGUMENTS
+                    )
+                
+                # Queue를 Exchange에 바인딩
+                await queue.bind(
+                    exchange=exchange,
+                    routing_key=self.routing_key
+                )
+                
                 await self.channel.set_qos(prefetch_count=1)
                 
                 self._running = True
                 logger.info(f"'{self.queue}' 큐에서 메시지 대기 중...")
             
+        except aio_pika.exceptions.ChannelPreconditionFailed as e:
+            logger.error(f"큐 선언 실패 (설정 불일치): {e}")
+            raise AppException("RabbitMQ queue configuration error", status_code=503)
         except Exception as e:
             logger.error(f"RabbitMQ 연결 실패: {e}")
-            raise AppException("RabbitMQ connection error",status_code=503)
+            raise AppException("RabbitMQ connection error", status_code=503)
 
     async def consume(self):
         """메시지 소비"""

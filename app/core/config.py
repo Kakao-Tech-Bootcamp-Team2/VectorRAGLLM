@@ -13,7 +13,10 @@ class Setting(BaseSettings):
     RABBITMQ_HOST : Final[str]
     RABBITMQ_QUEUE : str = "recommendation.queue"
     RABBITMQ_RESPONSE_QUEUE : str = "response.queue"
-    RABBITMQ_QUEUE_ARGUMENTS : Dict[str,int] = {
+    RABBITMQ_EXCHANGE: str = "recommendation.exchange"
+    RABBITMQ_ROUTING_KEY: str = "recommendation.zipbob"
+    RABBITMQ_DLX: str = "dlx.rc.exchange"
+    RABBITMQ_QUEUE_ARGUMENTS : Dict[str,any] = {
     'x-message-ttl': 60000  # 60초
     }
     MODEL_NAME: str = "intfloat/multilingual-e5-large-instruct"
