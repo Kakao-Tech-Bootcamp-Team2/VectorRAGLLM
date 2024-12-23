@@ -75,7 +75,11 @@ class RabbitMQListener:
             if not self._running:
                 await self.setup()
                 
-            queue = await self.channel.declare_queue(self.queue, durable=True)
+            queue = await self.channel.declare_queue(
+                self.queue, 
+                durable=True,
+                arguments=setting.RABBITMQ_QUEUE_ARGUMENTS
+            )
             async for message in queue:
                 async with message.process():
                     await MessageProcessor.process_message(message.body)
