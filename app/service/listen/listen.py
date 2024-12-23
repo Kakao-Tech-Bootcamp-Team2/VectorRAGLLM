@@ -55,8 +55,11 @@ class RabbitMQListener:
                 connection_url = f"amqp://{self.host}/"
                 self.connection = await aio_pika.connect_robust(connection_url)
                 self.channel = await self.connection.channel()
-                
-                await self.channel.declare_queue(self.queue, durable=True)
+                await self.channel.declare_queue(
+                    self.queue, 
+                    durable=True,
+                    arguments=setting.RABBITMQ_QUEUE_ARGUMENTS
+                )
                 await self.channel.set_qos(prefetch_count=1)
                 
                 self._running = True
@@ -84,7 +87,7 @@ class RabbitMQListener:
             self._running = False
 
     async def cleanup(self):
-        """리소스 정���"""
+        """리소스 정리"""
         if self.connection:
             await self.connection.close()
             self._running = False

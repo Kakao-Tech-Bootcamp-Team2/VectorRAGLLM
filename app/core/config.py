@@ -13,6 +13,9 @@ class Setting(BaseSettings):
     RABBITMQ_HOST : Final[str]
     RABBITMQ_QUEUE : str = "recommendation.queue"
     RABBITMQ_RESPONSE_QUEUE : str = "response.queue"
+    RABBITMQ_QUEUE_ARGUMENTS = {
+    'x-message-ttl': 60000  # 60초
+    }
     MODEL_NAME: str = "intfloat/multilingual-e5-large-instruct"
     VECTOR_DB_NAME : str = "recipes"
     VECTOR_DIMENSION: int = 1024

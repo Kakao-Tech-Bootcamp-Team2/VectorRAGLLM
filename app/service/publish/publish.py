@@ -27,7 +27,7 @@ class RabbitMQPublisher:
                 logger.info("RabbitMQ connection setting...")
                 self.connection = await aio_pika.connect_robust(f"amqp://{self.host}/")
                 self.channel = await self.connection.channel()
-                await self.channel.declare_queue(self.routing_key, durable=True)
+                await self.channel.declare_queue(self.routing_key, durable=True, arguments=setting.RABBITMQ_QUEUE_ARGUMENTS)
                 logger.info("RabbitMQ connection setting complete.")
         except Exception as e:
             logger.error(f"RabbitMQ connection setting error: {e}")
